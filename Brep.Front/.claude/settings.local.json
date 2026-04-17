@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\micha\\\\source\\\\repos\\\\NavCheckPrototypes\" log --oneline -20)",
+      "Bash(npm install:*)",
+      "Bash(npx ng build:*)",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const t = ag.themeQuartz; console.log\\(Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(t\\)\\).join\\('\\\\n'\\)\\);\")",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); console.log\\(Object.keys\\(ag\\).filter\\(k => k.toLowerCase\\(\\).includes\\('part'\\) || k.toLowerCase\\(\\).includes\\('css'\\) || k.toLowerCase\\(\\).includes\\('theme'\\)\\).join\\('\\\\n'\\)\\);\")",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const p = ag.createPart\\({ css: '.ag-row { color: red; }' }\\); console.log\\(typeof p, Object.keys\\(p\\)\\);\")",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const t = ag.themeQuartz; const params = t._getModeParams\\('light'\\); console.log\\(Object.keys\\(params\\).filter\\(k => k.toLowerCase\\(\\).includes\\('header'\\)\\).join\\('\\\\n'\\)\\);\")",
+      "Bash(node -e ':*)",
+      "Bash(node :*)",
+      "Bash(node_modules/.bin/grep -r \"header-cell-label\" node_modules/ag-grid-community/dist --include=\"*.css\" -l)",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const t = ag.themeQuartz.withParams\\({}\\); console.log\\('ok'\\);\")",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const keys = Object.keys\\(ag\\).filter\\(k => k.toLowerCase\\(\\).includes\\('rowstyle'\\) || k.toLowerCase\\(\\).includes\\('rowclass'\\)\\); console.log\\(keys\\);\")",
+      "Bash(node -e \"const ag = require\\('ag-grid-community'\\); const keys = Object.keys\\(ag\\).filter\\(k => k.toLowerCase\\(\\).includes\\('row'\\)\\); console.log\\(keys.slice\\(0,30\\)\\);\")",
+      "Bash(node -e \"const {themeQuartz} = require\\('ag-grid-community'\\); const t = themeQuartz.withParams\\({}\\); console.log\\(Object.keys\\(require\\('ag-grid-community'\\)\\).filter\\(k => k.includes\\('createPart'\\) || k.includes\\('Part'\\)\\)\\);\")",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(xargs sed:*)"
+    ]
+  }
+}

@@ -1,0 +1,321 @@
+Prompt for Claude Code — Reproduce "Solar Production" widget in Angular 21 + Tailwind
+Context
+
+I want you to reproduce a single widget from an existing React dashboard, this time as a standalone Angular 21 application using Tailwind CSS v3. The original is a dark-themed energy-trading-style monitoring tool for a portfolio of Solar PV + BESS assets in the Baltic states.
+
+Scope — keep it minimal:
+
+    ❌ No left sidebar
+    ❌ No top header / "Technical Dashboard" title
+    ✅ Keep the site selector (compact dropdown, top-right)
+    ✅ Keep the Solar Production chart card with all its functionality
+    ✅ All data must be mocked (no backend, no HTTP)
+
+The page should render just these two things on a dark background: the site selector strip on top, and the Solar Production chart card below it.
+Tech stack (strict)
+
+    Angular 21 standalone components, no NgModules. Use the new control-flow syntax (@if, @for, @switch).
+    Signals for state (signal, computed, effect).
+    Tailwind CSS v3 with HSL CSS variables (no v4).
+    ng2-charts + chart.js for charting (Chart.js v4, ng2-charts v6+ which supports standalone). The chart is a mixed bar + line + area composed chart.
+    TypeScript strict mode.
+    No other UI libraries (no Angular Material, no PrimeNG). Build the dropdowns and toggle group from scratch with Tailwind.
+
+Functional spec — Solar Production widget
+
+The widget is a card with a header (title + subtitle on the left, controls on the right) and a chart body (~280px tall).
+Three view modes (toggle group: Intraday / Daily / Monthly)
+View	X axis	Data shape	Chart series
+Monthly	12 months (Jan–Dec)	Aggregated MWh per month	Stacked bars: toGrid + toBESS (only if site has BESS), plus dashed line for potential
+Daily	Days 1..N of selected month	MWh per day	Same series as Monthly
+Intraday	96 × 15-min slots HH:MM, but sliced up to current time	MW (instantaneous)	Stacked areas: toGrid + toBESS, dashed area for potential, plus a vertical reference line at "now" labeled NOW HH:MM in red
+Header controls (right side, in this order)
+
+    Year select (visible in Monthly + Daily only) — values: 2024, 2025, 2026, 2027. Default 2026.
+    Month select (visible in Daily only) — Jan..Dec. Default Mar (index 2).
+    Toggle group: Intraday | Daily | Monthly. Default Monthly.
+
+All three controls are compact: ~24px tall, ~10px font, dark secondary background, subtle border.
+Header title (dynamic)
+
+    Monthly: Solar Production — 2026
+    Daily: Solar Production — Mar 2026
+    Intraday: Solar Production — Today 4/17/2026 · LIVE 14:30
+
+Header subtitle
+
+    Intraday: MW (15-min, real-time)
+    Otherwise: MWh
+
+Live behavior (Intraday only)
+
+    A setInterval ticks every 15 seconds updating a now signal.
+    On each tick, recompute slotsElapsed = floor((H*60+M)/15) + 1 and slice the 96-point array to that length.
+    The NOW label snaps to the current 15-min boundary: HH: + floor(minutes/15)*15.
+    Clear the interval when the view is not intraday.
+
+Site selector (kept from the original)
+
+A compact pill-shaped <select> styled to match the dark theme, top-right of the page. It exposes 4 sites:
+
+const SITES = [
+  { id: 'all',      name: 'All sites',       solarMWp: 105.8, bessMW: 55, bessMWh: 250 },
+  { id: 'kirikmae', name: 'Kirikmäe Hybrid', solarMWp: 77.5,  bessMW: 55, bessMWh: 250 },
+  { id: 'imavere',  name: 'Imavere',         solarMWp: 15.5 },
+  { id: 'lohu',     name: 'Lohu Mets',       solarMWp: 12.8 },
+];
+
+hasBess = !!site.bessMW. When hasBess is false, the toBESS series must be hidden in the chart.
+
+Show small inline chips next to the select displaying {solarMWp} MWp and (if applicable) {bessMW} MW / {bessMWh} MWh, matching the original's color-coded chips (solar = amber, bess = blue).
+Mocked data (port verbatim from the React app)
+
+Create src/app/data/mock-solar.ts:
+
+export const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
+
+const daysInMonth = (year: number, month: number) =>
+  new Date(year, month + 1, 0).getDate();
+
+// 0=Jan ... 11=Dec
+const solarSeasonalFactor = [0.25, 0.38, 0.75, 0.82, 0.95, 1.0, 0.96, 0.85, 0.63, 0.4, 0.2, 0.15];
+
+export interface SolarPoint { label: string; potential: number; toGrid: number; toBESS: number; }
+
+export const generateMonthlySolar = (year: number): SolarPoint[] =>
+  months.map((m, i) => {
+    const s = seededRandom(year * 100 + i);
+    const factor = solarSeasonalFactor[i];
+    const potential = Math.round((10000 + s * 3000) * factor);
+    const toGrid    = Math.round(potential * (0.7 + s * 0.15));
+    const toBESS    = Math.round(potential * (0.05 + s * 0.08));
+    return { label: m, potential, toGrid, toBESS };
+  });
+
+export const generateDailySolar = (year: number, monthIdx: number): SolarPoint[] => {
+  const days = daysInMonth(year, monthIdx);
+  const factor = solarSeasonalFactor[monthIdx];
+  return Array.from({ length: days }, (_, i) => {
+    const s = seededRandom(year * 10000 + monthIdx * 100 + i);
+    const potential = Math.round((150 + s * 350) * factor * 2);
+    const toGrid    = Math.round(potential * (0.65 + s * 0.2));
+    const toBESS    = Math.round(potential * (0.05 + s * 0.1));
+    return { label: String(i + 1), potential, toGrid, toBESS };
+  });
+};
+
+// 96 × 15-min points — gaussian bell around solar noon (~13:00)
+export const generateIntradaySolar = (year: number, monthIdx: number, day: number): SolarPoint[] => {
+  const factor = solarSeasonalFactor[monthIdx];
+  const peakHour = 13;
+  const sigma = 3.2;
+  return Array.from({ length: 96 }, (_, i) => {
+    const hour = i * 0.25;
+    const hh = String(Math.floor(hour)).padStart(2, '0');
+    const mm = String((i % 4) * 15).padStart(2, '0');
+    const s = seededRandom(year * 1_000_000 + monthIdx * 10_000 + day * 100 + i);
+    const bell = Math.exp(-Math.pow(hour - peakHour, 2) / (2 * sigma * sigma));
+    const potential = +(bell * factor * 28 * (0.92 + s * 0.16)).toFixed(2);
+    const lossFactor = 0.86 + s * 0.1;
+    const totalActual = +(potential * lossFactor).toFixed(2);
+    const toBESS = +(totalActual * (0.1 + s * 0.15)).toFixed(2);
+    const toGrid = +(totalActual - toBESS).toFixed(2);
+    return { label: `${hh}:${mm}`, potential, toGrid, toBESS };
+  });
+};
+
+Design system — Tailwind setup
+
+The original uses HSL CSS variables and semantic Tailwind colors. Reproduce that.
+src/styles.css
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 90%;
+    --card: 220 18% 13%;
+    --card-foreground: 210 20% 90%;
+    --primary: 45 95% 55%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 85%;
+    --muted: 220 15% 16%;
+    --muted-foreground: 215 12% 55%;
+    --border: 220 15% 20%;
+    --radius: 0.5rem;
+
+    /* Energy tokens */
+    --solar: 45 95% 55%;     /* amber */
+    --bess:  200 70% 50%;    /* blue */
+    --grid:  160 60% 45%;    /* teal */
+    --curtailment: 0 72% 55%;/* red */
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+}
+
+tailwind.config.ts
+
+import type { Config } from 'tailwindcss';
+
+export default {
+  content: ['./src/**/*.{html,ts}'],
+  theme: {
+    extend: {
+      colors: {
+        border:     'hsl(var(--border))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        card:       'hsl(var(--card))',
+        primary:    { DEFAULT: 'hsl(var(--primary))',   foreground: 'hsl(var(--primary-foreground))' },
+        secondary:  { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
+        muted:      { DEFAULT: 'hsl(var(--muted))',     foreground: 'hsl(var(--muted-foreground))' },
+        solar:      'hsl(var(--solar))',
+        bess:       'hsl(var(--bess))',
+        grid:       'hsl(var(--grid))',
+        curtailment:'hsl(var(--curtailment))',
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+    },
+  },
+} satisfies Config;
+
+HTML samples (target look — replicate with Angular templates)
+Card shell
+
+<div class="bg-card border border-border rounded-lg overflow-hidden">
+  <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div>
+      <h3 class="text-sm font-medium">Solar Production — 2026</h3>
+      <p class="text-[10px] text-muted-foreground mt-0.5">MWh</p>
+    </div>
+    <!-- controls go here -->
+  </div>
+  <div class="p-4">
+    <!-- canvas goes here, height ~280px -->
+  </div>
+</div>
+
+Toggle group (build with buttons + signal)
+
+<div class="inline-flex items-center gap-0.5 bg-secondary/30 rounded-md p-0.5">
+  <button
+    class="text-[10px] px-2.5 h-6 rounded-sm transition-colors
+           data-[active=true]:bg-primary data-[active=true]:text-primary-foreground
+           text-muted-foreground hover:text-foreground"
+    [attr.data-active]="view() === 'intraday'"
+    (click)="view.set('intraday')">Intraday</button>
+  <!-- repeat for Daily / Monthly -->
+</div>
+
+Compact select
+
+<select
+  class="h-6 text-[10px] bg-secondary/50 border border-border/50 rounded px-2
+         text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+  [value]="year()"
+  (change)="year.set(+$any($event.target).value)">
+  @for (y of years; track y) { <option [value]="y">{{ y }}</option> }
+</select>
+
+Site selector strip (top of page)
+
+<div class="flex items-center justify-end gap-2 px-4 py-3">
+  <span class="inline-flex items-center gap-1 text-[10px] font-mono bg-solar/10 text-solar px-2 py-0.5 rounded">
+    ☀ {{ site().solarMWp }} MWp
+  </span>
+  @if (hasBess()) {
+    <span class="inline-flex items-center gap-1 text-[10px] font-mono bg-bess/10 text-bess px-2 py-0.5 rounded">
+      🔋 {{ site().bessMW }} MW / {{ site().bessMWh }} MWh
+    </span>
+  }
+  <select
+    class="h-6 text-[10px] bg-secondary border border-border/50 rounded px-2"
+    [value]="selectedSiteId()"
+    (change)="selectedSiteId.set($any($event.target).value)">
+    @for (s of sites; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+  </select>
+</div>
+
+Chart configuration (Chart.js)
+
+Use a mixed chart (type: 'bar' at the dataset level, with type: 'line' for the potential series; for Intraday use type: 'line' with fill: true on all three).
+
+Colors (use getComputedStyle to read CSS vars, OR hardcode HSL strings):
+
+    Solar (toGrid): hsl(45, 95%, 55%)
+    BESS (toBESS): hsl(200, 70%, 50%)
+    Potential (dashed): hsl(215, 12%, 35%)
+    NOW reference line: hsl(0, 72%, 55%)
+    Grid lines: hsl(220, 15%, 18%)
+    Tick text: hsl(215, 12%, 35%), fontSize 10
+    Tooltip bg: hsl(220, 18%, 13%), border hsl(220, 15%, 20%)
+
+Dataset shapes:
+
+// Monthly / Daily — bars + dashed line
+datasets: [
+  { type: 'bar', label: 'Solar to Grid', data: toGrid, backgroundColor: SOLAR, stack: 'a' },
+  ...(hasBess ? [{ type: 'bar', label: 'Solar to BESS', data: toBESS, backgroundColor: BESS, stack: 'a' }] : []),
+  { type: 'line', label: 'Potential', data: potential, borderColor: MUTED, borderDash: [4,4], borderWidth: 2, pointRadius: 0, fill: false },
+]
+
+// Intraday — stacked areas + dashed potential area + NOW line via annotation plugin
+datasets: [
+  { type: 'line', label: 'Potential', data: potential, borderColor: MUTED, borderDash: [4,4], borderWidth: 2, fill: true,
+    backgroundColor: 'hsla(215,12%,35%,0.1)', pointRadius: 0 },
+  { type: 'line', label: 'Solar to Grid', data: toGrid, borderColor: SOLAR, backgroundColor: 'hsla(45,95%,55%,0.7)', fill: 'origin', stack: 'actual', pointRadius: 0 },
+  ...(hasBess ? [{ type: 'line', label: 'Solar to BESS', data: toBESS, borderColor: BESS, backgroundColor: 'hsla(200,70%,50%,0.7)', fill: '-1', stack: 'actual', pointRadius: 0 }] : []),
+]
+
+For the vertical NOW line, install chartjs-plugin-annotation and add an annotation pointing at nowLabel.
+
+For Intraday, set X axis ticks: { autoSkip: true, maxTicksLimit: 12 } (mirrors the React interval={7}).
+Project structure
+
+src/
+├── app/
+│   ├── app.component.ts            # standalone root, hosts SiteSelector + SolarProduction
+│   ├── data/
+│   │   ├── mock-solar.ts
+│   │   └── sites.ts                # SITES const + Site type
+│   ├── services/
+│   │   └── site.service.ts         # signal-based, exposes selectedSiteId, site, hasBess
+│   └── components/
+│       ├── site-selector.component.ts
+│       ├── chart-card.component.ts # generic <app-chart-card [title] [subtitle]> with header slot
+│       └── solar-production.component.ts
+├── styles.css
+└── main.ts
+
+SiteService should be providedIn: 'root' and use signals so that switching the site instantly re-renders the chart (drop the toBESS dataset).
+Acceptance criteria
+
+    ng serve shows a dark page with the site selector strip on top and the Solar Production card below — nothing else.
+    Toggling Monthly / Daily / Intraday swaps the chart correctly; Year/Month selects appear/disappear per the table above.
+    Switching the site to Imavere or Lohu Mets (no BESS) removes the Solar to BESS series from both the chart and any totals.
+    In Intraday, the chart truncates at the current 15-min slot and shows a labeled red dashed NOW HH:MM vertical line. It refreshes at least every 15 s.
+    Data is deterministic per (year, month) thanks to seededRandom — reloading shows the same bars for the same selection.
+    No console errors, no Angular Material, no HTTP, no NgModules.
+    Tailwind classes only — no inline style="" except where required by Chart.js options.
+
+Please scaffold the Angular 21 project (ng new solar-widget --standalone --style=css --routing=false), install tailwindcss postcss autoprefixer chart.js ng2-charts chartjs-plugin-annotation, then implement everything above. When done, briefly summarize the files you created.
