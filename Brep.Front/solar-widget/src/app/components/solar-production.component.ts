@@ -98,13 +98,14 @@ export class SolarProductionComponent implements OnDestroy {
     year:  this.year(),
     month: this.month(),
     day:   this.now().getDate(),
+    site:  this.siteSvc.selectedSiteId(),
   }));
 
   private readonly rawPoints$ = toObservable(this.params).pipe(
-    switchMap(({ view, year, month, day }) => {
-      if (view === 'monthly') return this.solarApi.getMonthlySolar(year);
-      if (view === 'daily')   return this.solarApi.getDailySolar(year, month);
-      return this.solarApi.getIntradaySolar(year, month, day);
+    switchMap(({ view, year, month, day, site }) => {
+      if (view === 'monthly') return this.solarApi.getMonthlySolar(site, year);
+      if (view === 'daily')   return this.solarApi.getDailySolar(site, year, month);
+      return this.solarApi.getIntradaySolar(site, year, month, day);
     }),
   );
 

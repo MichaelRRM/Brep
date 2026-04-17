@@ -1,13 +1,17 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { MockSitesApiService } from '../mock/mock-sites-api.service';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 import { Site } from '../mock/sites';
+
+const BASE = 'http://localhost:5070';
 
 @Injectable({ providedIn: 'root' })
 export class SitesApiService {
-  private mock = inject(MockSitesApiService);
+  private http = inject(HttpClient);
 
   getSites(): Observable<Site[]> {
-    return this.mock.getSites();
+    return this.http.get<string[]>(`${BASE}/sites`).pipe(
+      map(ids => ids.map(id => ({ id, name: id, solarMWp: 0 }))),
+    );
   }
 }
