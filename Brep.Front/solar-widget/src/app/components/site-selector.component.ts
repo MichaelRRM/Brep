@@ -10,7 +10,7 @@ import { SiteService } from '../services/site.service';
         class="h-6 text-[10px] bg-secondary border border-border/50 rounded px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         [value]="selectedSiteId()"
         (change)="selectedSiteId.set($any($event.target).value)">
-        @for (s of sites; track s.id) {
+        @for (s of sites(); track s.id) {
           <option [value]="s.id">{{ s.name }}</option>
         }
       </select>

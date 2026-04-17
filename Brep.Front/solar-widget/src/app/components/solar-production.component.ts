@@ -1,26 +1,29 @@
 import {
   Component, inject, signal, computed, effect, OnDestroy,
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { switchMap } from 'rxjs';
 import { ChartConfiguration, ChartDataset } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { Chart } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 
 import { SiteService } from '../services/site.service';
+import { SolarApiService } from '../services/solar-api.service';
 import { ChartCardComponent } from './chart-card.component';
-import { months, generateMonthlySolar, generateDailySolar, generateIntradaySolar } from '../data/mock-solar';
+import { months, SolarPoint } from '../mock/mock-solar';
 
 Chart.register(annotationPlugin);
 
 type ViewMode = 'intraday' | 'daily' | 'monthly';
 
-const SOLAR  = 'hsl(45, 95%, 55%)';
-const BESS   = 'hsl(200, 70%, 50%)';
-const MUTED  = 'hsl(215, 12%, 35%)';
-const NOW_C  = 'hsl(0, 72%, 55%)';
-const GRID_L = 'hsl(220, 15%, 18%)';
-const TICK_C = 'hsl(215, 12%, 35%)';
-const TOOLTIP_BG = 'hsl(220, 18%, 13%)';
+const SOLAR        = 'hsl(45, 95%, 55%)';
+const BESS         = 'hsl(200, 70%, 50%)';
+const MUTED        = 'hsl(215, 12%, 35%)';
+const NOW_C        = 'hsl(0, 72%, 55%)';
+const GRID_L       = 'hsl(220, 15%, 18%)';
+const TICK_C       = 'hsl(215, 12%, 35%)';
+const TOOLTIP_BG   = 'hsl(220, 18%, 13%)';
 const TOOLTIP_BORDER = 'hsl(220, 15%, 20%)';
 
 const years = [2024, 2025, 2026, 2027];
@@ -54,7 +57,6 @@ const years = [2024, 2025, 2026, 2027];
               class="text-[10px] px-2.5 h-6 rounded-sm transition-colors text-muted-foreground hover:text-foreground"
               [class.bg-primary]="view() === v.key"
               [class.text-primary-foreground]="view() === v.key"
-              [attr.data-active]="view() === v.key"
               (click)="view.set(v.key)">
               {{ v.label }}
             </button>
@@ -73,7 +75,8 @@ const years = [2024, 2025, 2026, 2027];
   `,
 })
 export class SolarProductionComponent implements OnDestroy {
-  private svc = inject(SiteService);
+  private siteSvc   = inject(SiteService);
+  private solarApi  = inject(SolarApiService);
 
   readonly view  = signal<ViewMode>('monthly');
   readonly year  = signal(2026);
@@ -89,6 +92,23 @@ export class SolarProductionComponent implements OnDestroy {
   ];
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
+
+  private readonly params = computed(() => ({
+    view:  this.view(),
+    year:  this.year(),
+    month: this.month(),
+    day:   this.now().getDate(),
+  }));
+
+  private readonly rawPoints$ = toObservable(this.params).pipe(
+    switchMap(({ view, year, month, day }) => {
+      if (view === 'monthly') return this.solarApi.getMonthlySolar(year);
+      if (view === 'daily')   return this.solarApi.getDailySolar(year, month);
+      return this.solarApi.getIntradaySolar(year, month, day);
+    }),
+  );
+
+  private readonly rawPoints = toSignal(this.rawPoints$, { initialValue: [] as SolarPoint[] });
 
   readonly cardTitle = computed(() => {
     const v = this.view(), y = this.year(), m = this.month(), n = this.now();
@@ -107,84 +127,51 @@ export class SolarProductionComponent implements OnDestroy {
   readonly chartType = computed(() => 'bar' as const);
 
   readonly chartData = computed((): ChartConfiguration['data'] => {
-    const v = this.view(), y = this.year(), m = this.month();
-    const hasBess = this.svc.hasBess();
-    const n = this.now();
+    const v = this.view(), n = this.now();
+    const hasBess = this.siteSvc.hasBess();
 
-    let points = v === 'monthly'
-      ? generateMonthlySolar(y)
-      : v === 'daily'
-        ? generateDailySolar(y, m)
-        : generateIntradaySolar(y, m, n.getDate());
-
+    let points = this.rawPoints();
     if (v === 'intraday') {
       const slotsElapsed = Math.floor((n.getHours() * 60 + n.getMinutes()) / 15) + 1;
       points = points.slice(0, slotsElapsed);
     }
 
-    const labels   = points.map(p => p.label);
-    const toGrid   = points.map(p => p.toGrid);
-    const toBESS   = points.map(p => p.toBESS);
+    const labels    = points.map(p => p.label);
+    const toGrid    = points.map(p => p.toGrid);
+    const toBESS    = points.map(p => p.toBESS);
     const potential = points.map(p => p.potential);
 
     const datasets: ChartDataset[] = v === 'intraday'
       ? [
           {
-            type: 'line',
-            label: 'Potential',
-            data: potential,
-            borderColor: MUTED,
-            borderDash: [4, 4],
-            borderWidth: 2,
-            fill: true,
-            backgroundColor: 'hsla(215,12%,35%,0.1)',
-            pointRadius: 0,
+            type: 'line', label: 'Potential', data: potential,
+            borderColor: MUTED, borderDash: [4, 4], borderWidth: 2,
+            fill: true, backgroundColor: 'hsla(215,12%,35%,0.1)', pointRadius: 0,
           } as ChartDataset<'line'>,
           {
-            type: 'line',
-            label: 'Solar to Grid',
-            data: toGrid,
-            borderColor: SOLAR,
-            backgroundColor: 'hsla(45,95%,55%,0.7)',
-            fill: 'origin',
-            stack: 'actual',
-            pointRadius: 0,
+            type: 'line', label: 'Solar to Grid', data: toGrid,
+            borderColor: SOLAR, backgroundColor: 'hsla(45,95%,55%,0.7)',
+            fill: 'origin', stack: 'actual', pointRadius: 0,
           } as ChartDataset<'line'>,
           ...(hasBess ? [{
-            type: 'line',
-            label: 'Solar to BESS',
-            data: toBESS,
-            borderColor: BESS,
-            backgroundColor: 'hsla(200,70%,50%,0.7)',
-            fill: '-1',
-            stack: 'actual',
-            pointRadius: 0,
+            type: 'line', label: 'Solar to BESS', data: toBESS,
+            borderColor: BESS, backgroundColor: 'hsla(200,70%,50%,0.7)',
+            fill: '-1', stack: 'actual', pointRadius: 0,
           } as ChartDataset<'line'>] : []),
         ]
       : [
           {
-            type: 'bar',
-            label: 'Solar to Grid',
-            data: toGrid,
-            backgroundColor: SOLAR,
-            stack: 'a',
+            type: 'bar', label: 'Solar to Grid', data: toGrid,
+            backgroundColor: SOLAR, stack: 'a',
           } as ChartDataset<'bar'>,
           ...(hasBess ? [{
-            type: 'bar',
-            label: 'Solar to BESS',
-            data: toBESS,
-            backgroundColor: BESS,
-            stack: 'a',
+            type: 'bar', label: 'Solar to BESS', data: toBESS,
+            backgroundColor: BESS, stack: 'a',
           } as ChartDataset<'bar'>] : []),
           {
-            type: 'line',
-            label: 'Potential',
-            data: potential,
-            borderColor: MUTED,
-            borderDash: [4, 4],
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false,
+            type: 'line', label: 'Potential', data: potential,
+            borderColor: MUTED, borderDash: [4, 4], borderWidth: 2,
+            pointRadius: 0, fill: false,
           } as ChartDataset<'line'>,
         ];
 
@@ -200,19 +187,11 @@ export class SolarProductionComponent implements OnDestroy {
     const annotations: Record<string, object> = {};
     if (v === 'intraday' && nowLabel) {
       annotations['nowLine'] = {
-        type: 'line',
-        scaleID: 'x',
-        value: nowLabel,
-        borderColor: NOW_C,
-        borderWidth: 1,
-        borderDash: [4, 4],
+        type: 'line', scaleID: 'x', value: nowLabel,
+        borderColor: NOW_C, borderWidth: 1, borderDash: [4, 4],
         label: {
-          display: true,
-          content: `NOW ${nowLabel}`,
-          color: NOW_C,
-          font: { size: 9 },
-          position: 'start',
-          backgroundColor: 'transparent',
+          display: true, content: `NOW ${nowLabel}`, color: NOW_C,
+          font: { size: 9 }, position: 'start', backgroundColor: 'transparent',
         },
       };
     }
@@ -224,11 +203,8 @@ export class SolarProductionComponent implements OnDestroy {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: TOOLTIP_BG,
-          borderColor: TOOLTIP_BORDER,
-          borderWidth: 1,
-          titleColor: 'hsl(210, 20%, 90%)',
-          bodyColor: 'hsl(210, 20%, 80%)',
+          backgroundColor: TOOLTIP_BG, borderColor: TOOLTIP_BORDER, borderWidth: 1,
+          titleColor: 'hsl(210, 20%, 90%)', bodyColor: 'hsl(210, 20%, 80%)',
         },
         annotation: { annotations },
       },
@@ -237,8 +213,7 @@ export class SolarProductionComponent implements OnDestroy {
           stacked: true,
           grid: { color: GRID_L },
           ticks: {
-            color: TICK_C,
-            font: { size: 10 },
+            color: TICK_C, font: { size: 10 },
             ...(v === 'intraday' ? { autoSkip: true, maxTicksLimit: 12 } : {}),
           },
         },
