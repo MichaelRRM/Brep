@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brep.WebApi", "Brep.WebApi\Brep.WebApi.csproj", "{BF653189-0AF7-4D30-85A7-B4F411AB3F6C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BF653189-0AF7-4D30-85A7-B4F411AB3F6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF653189-0AF7-4D30-85A7-B4F411AB3F6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF653189-0AF7-4D30-85A7-B4F411AB3F6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF653189-0AF7-4D30-85A7-B4F411AB3F6C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
