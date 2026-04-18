@@ -33,7 +33,7 @@ const years = [2024, 2025, 2026, 2027];
   standalone: true,
   imports: [BaseChartDirective, ChartCardComponent],
   template: `
-    <app-chart-card [title]="cardTitle()" [subtitle]="cardSubtitle()" [loading]="loading()">
+    <app-chart-card [title]="cardTitle()" [subtitle]="cardSubtitle()" [loading]="loading()" [refreshing]="refreshing()">
       <ng-container controls>
         @if (view() !== 'intraday') {
           <select
@@ -104,23 +104,33 @@ export class SolarProductionComponent implements OnDestroy {
   private readonly result$ = toObservable(this.params).pipe(
     switchMap(({ view, year, month, day, site }) => {
       if (!site) return EMPTY;
+      const navKey = `${view}|${site}|${year}|${month}|${day}`;
       const fetch$ = view === 'monthly' ? this.solarApi.getMonthlySolar(site, year)
                    : view === 'daily'   ? this.solarApi.getDailySolar(site, year, month)
                    : this.solarApi.getIntradaySolar(site, year, month, day);
       return fetch$.pipe(
-        map(points => ({ loading: false, points: points as SolarPoint[] | null })),
-        startWith({ loading: true, points: null }),
+        map(points => ({ navKey, points: points as SolarPoint[] | null, pending: false })),
+        startWith({ navKey, points: null as SolarPoint[] | null, pending: true }),
       );
     }),
     scan(
-      (acc, curr) => ({ loading: curr.loading, points: curr.points ?? acc.points }),
-      { loading: false, points: [] as SolarPoint[] },
+      (acc, curr) => {
+        const navChanged = curr.navKey !== acc.navKey;
+        return {
+          navKey:     curr.navKey,
+          points:     curr.points ?? acc.points,
+          loading:    curr.pending && navChanged,
+          refreshing: curr.pending && !navChanged,
+        };
+      },
+      { navKey: '', points: [] as SolarPoint[], loading: false, refreshing: false },
     ),
   );
 
-  private readonly result   = toSignal(this.result$, { initialValue: { loading: false, points: [] as SolarPoint[] } });
-  readonly loading           = computed(() => this.result().loading);
-  private readonly rawPoints = computed(() => this.result().points);
+  private readonly result    = toSignal(this.result$, { initialValue: { navKey: '', loading: false, refreshing: false, points: [] as SolarPoint[] } });
+  readonly loading            = computed(() => this.result()?.loading ?? false);
+  readonly refreshing         = computed(() => this.result()?.refreshing ?? false);
+  private readonly rawPoints  = computed(() => this.result()?.points ?? []);
 
   readonly cardTitle = computed(() => {
     const v = this.view(), y = this.year(), m = this.month(), n = this.now();
