@@ -14,9 +14,6 @@ app.MapOpenApi();
 app.UseSwaggerUI(options => 
     options.SwaggerEndpoint("/openapi/v1.json", "v1"));
 
-if (!app.Environment.IsProduction())
-    app.UseHttpsRedirection();
-
 app.UseCors(); 
 
 app.MapRoutes();
