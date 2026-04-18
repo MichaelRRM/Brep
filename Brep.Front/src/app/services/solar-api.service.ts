@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 import { SolarPoint, months } from '../mock/mock-solar';
 import { isoRange } from '../utils/date.utils';
 
-const BASE = 'http://localhost:5070';
+const BASE = '';
 const SOLAR_TO_GRID = 'hr/370';
 
 interface DataPointEntry {

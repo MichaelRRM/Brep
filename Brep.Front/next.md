@@ -11,6 +11,7 @@ from claude:
 
 I want directions to deploy this, as a prototype, on azure. 
 Some elements: 
+-app has the webapi back end (asp net 10) and front end (angular 21). these are the only components at this stage 
 - free tier only or as close to possible. 
 - i want it open to my ip only, as well as the ip of a partner I will get later 
 - the back end will need access to the nexalis api it is using 

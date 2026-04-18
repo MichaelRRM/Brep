@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Site } from '../mock/sites';
 
-const BASE = 'http://localhost:5070';
+const BASE = '';
 
 @Injectable({ providedIn: 'root' })
 export class SitesApiService {
