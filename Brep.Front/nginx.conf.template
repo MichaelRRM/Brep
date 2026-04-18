@@ -6,7 +6,7 @@ server {
     # Proxy /api/* to backend
     location /api/ {
         proxy_pass ${BACKEND_URL}/api/;
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_http_version 1.1;
         # SSE support
@@ -19,7 +19,7 @@ server {
     # Proxy /sites to backend
     location = /sites {
         proxy_pass ${BACKEND_URL}/sites;
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
