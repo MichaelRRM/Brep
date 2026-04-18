@@ -40,7 +40,7 @@ const years = [2024, 2025, 2026, 2027];
             class="h-6 text-[10px] bg-secondary/50 border border-border/50 rounded px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             [value]="year()"
             (change)="year.set(+$any($event.target).value)">
-            @for (y of years; track y) { <option [value]="y">{{ y }}</option> }
+            @for (y of years; track y) { <option [value]="y" [selected]="y === year()">{{ y }}</option> }
           </select>
         }
         @if (view() === 'daily') {
@@ -48,7 +48,7 @@ const years = [2024, 2025, 2026, 2027];
             class="h-6 text-[10px] bg-secondary/50 border border-border/50 rounded px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             [value]="month()"
             (change)="month.set(+$any($event.target).value)">
-            @for (m of months; track $index) { <option [value]="$index">{{ m }}</option> }
+            @for (m of months; track $index) { <option [value]="$index" [selected]="$index === month()">{{ m }}</option> }
           </select>
         }
         <div class="inline-flex items-center gap-0.5 bg-secondary/30 rounded-md p-0.5">
