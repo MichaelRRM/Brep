@@ -2,7 +2,7 @@ import {
   Component, inject, signal, computed, effect, OnDestroy,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
+import { EMPTY, switchMap } from 'rxjs';
 import { ChartConfiguration, ChartDataset } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { Chart } from 'chart.js';
@@ -103,6 +103,7 @@ export class SolarProductionComponent implements OnDestroy {
 
   private readonly rawPoints$ = toObservable(this.params).pipe(
     switchMap(({ view, year, month, day, site }) => {
+      if (!site) return EMPTY;
       if (view === 'monthly') return this.solarApi.getMonthlySolar(site, year);
       if (view === 'daily')   return this.solarApi.getDailySolar(site, year, month);
       return this.solarApi.getIntradaySolar(site, year, month, day);

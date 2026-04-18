@@ -14,18 +14,18 @@ public static class Routes
         
         app.MapGet("/api/datapoint", async (
             string site, string dataPoint,
-            DateTimeOffset? start, DateTimeOffset? end,
+            DateTimeOffset? start, DateTimeOffset? end, int bucketSize,
             [FromServices] NexalisClient client, [FromServices] IConfiguration config, CancellationToken ct) =>
         {
             var to = end ?? DateTimeOffset.UtcNow;
             var from = start ?? to.AddHours(-1);
-            var result = await client.FetchAsync(site, dataPoint, from, to, ct);
+            var result = await client.FetchAsync(site, dataPoint, from, to, bucketSize, ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
         // SSE streaming endpoint
         app.MapGet("/api/datapoint/stream", async (
-            string site, string dataPoint,
+            string site, string dataPoint, int bucketSize,
             HttpContext ctx,
             [FromServices] NexalisClient client, [FromServices] IConfiguration config, CancellationToken ct) =>
         {
@@ -38,7 +38,7 @@ public static class Routes
             {
                 var to = DateTimeOffset.UtcNow;
                 var from = to.AddHours(-1);
-                var result = await client.FetchAsync(site, dataPoint, from, to, ct);
+                var result = await client.FetchAsync(site, dataPoint, from, to, bucketSize, ct);
 
                 if (result is not null)
                 {

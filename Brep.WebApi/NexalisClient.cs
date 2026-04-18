@@ -10,7 +10,7 @@ public class NexalisClient(HttpClient http, IConfiguration config)
 
     public async Task<DatapointResponse?> FetchAsync(
         string site, string dataPoint,
-        DateTimeOffset start, DateTimeOffset end,
+        DateTimeOffset start, DateTimeOffset end, int bucketSize,
         CancellationToken ct = default)
     {
         var start8601 = start.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
@@ -19,11 +19,12 @@ public class NexalisClient(HttpClient http, IConfiguration config)
 
         var body = "{ " +
                    $"'token' '{_token}' " +
-                   $"'class' 'nx.value' " +
-                   $"'labels' {{ 'siteName' '{site}' 'dataPoint' '{labelPattern}' }} " +
+                   //$"'class' 'nx.value' " +
+                   $"'labels' {{ 'siteName' '{site}' 'assetType' 'INV' 'dataObject' 'TotW' }} " +
                    $"'start' '{start8601}' " +
                    $"'end' '{end8601}' " +
-                   "} FETCH\n@nexalis/scale";
+                   $"'bucket_size' 15 " +
+                   "} \n@nexalis/fetch_trapezoidal_averages";
 
         var response = await http.PostAsync(_baseUrl,
             new StringContent(body, Encoding.UTF8, "text/plain"), ct);

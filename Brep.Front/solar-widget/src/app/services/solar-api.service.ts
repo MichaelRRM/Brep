@@ -51,21 +51,21 @@ export class SolarApiService {
   getMonthlySolar(site: string, year: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year);
     return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
-      params: { site, dataPoint: SOLAR_TO_GRID, start, end },
+      params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 43200 },
     }).pipe(map(entries => toMonthly(entries)));
   }
 
   getDailySolar(site: string, year: number, month: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year, month);
     return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
-      params: { site, dataPoint: SOLAR_TO_GRID, start, end },
+      params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 1440 },
     }).pipe(map(entries => toDaily(entries, year, month)));
   }
 
   getIntradaySolar(site: string, year: number, month: number, day: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year, month, day);
     return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
-      params: { site, dataPoint: SOLAR_TO_GRID, start, end },
+      params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 15 },
     }).pipe(map(entries => toIntraday(entries)));
   }
 }
