@@ -2,7 +2,7 @@ import {
   Component, inject, signal, computed, effect, OnDestroy,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { EMPTY, switchMap, map, startWith } from 'rxjs';
+import { EMPTY, switchMap, map, startWith, scan } from 'rxjs';
 import { ChartConfiguration, ChartDataset } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { Chart } from 'chart.js';
@@ -108,10 +108,14 @@ export class SolarProductionComponent implements OnDestroy {
                    : view === 'daily'   ? this.solarApi.getDailySolar(site, year, month)
                    : this.solarApi.getIntradaySolar(site, year, month, day);
       return fetch$.pipe(
-        map(points => ({ loading: false, points })),
-        startWith({ loading: true, points: [] as SolarPoint[] }),
+        map(points => ({ loading: false, points: points as SolarPoint[] | null })),
+        startWith({ loading: true, points: null }),
       );
     }),
+    scan(
+      (acc, curr) => ({ loading: curr.loading, points: curr.points ?? acc.points }),
+      { loading: false, points: [] as SolarPoint[] },
+    ),
   );
 
   private readonly result   = toSignal(this.result$, { initialValue: { loading: false, points: [] as SolarPoint[] } });
@@ -207,6 +211,7 @@ export class SolarProductionComponent implements OnDestroy {
     return {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -238,7 +243,7 @@ export class SolarProductionComponent implements OnDestroy {
     effect(() => {
       const isIntraday = this.view() === 'intraday';
       if (isIntraday) {
-        this.intervalId = setInterval(() => this.now.set(new Date()), 15000);
+        this.intervalId = setInterval(() => this.now.set(new Date()), 5000);
       } else {
         if (this.intervalId !== null) {
           clearInterval(this.intervalId);
