@@ -2,7 +2,7 @@ import {
   Component, inject, signal, computed, effect, OnDestroy,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { EMPTY, switchMap } from 'rxjs';
+import { EMPTY, switchMap, map, startWith } from 'rxjs';
 import { ChartConfiguration, ChartDataset } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { Chart } from 'chart.js';
@@ -33,7 +33,7 @@ const years = [2024, 2025, 2026, 2027];
   standalone: true,
   imports: [BaseChartDirective, ChartCardComponent],
   template: `
-    <app-chart-card [title]="cardTitle()" [subtitle]="cardSubtitle()">
+    <app-chart-card [title]="cardTitle()" [subtitle]="cardSubtitle()" [loading]="loading()">
       <ng-container controls>
         @if (view() !== 'intraday') {
           <select
@@ -79,9 +79,9 @@ export class SolarProductionComponent implements OnDestroy {
   private solarApi  = inject(SolarApiService);
 
   readonly view  = signal<ViewMode>('monthly');
-  readonly year  = signal(2026);
-  readonly month = signal(2);
   readonly now   = signal(new Date());
+  readonly year  = signal(this.now().getFullYear());
+  readonly month = signal(this.now().getMonth());
 
   readonly years  = years;
   readonly months = months;
@@ -101,16 +101,22 @@ export class SolarProductionComponent implements OnDestroy {
     site:  this.siteSvc.selectedSiteId(),
   }));
 
-  private readonly rawPoints$ = toObservable(this.params).pipe(
+  private readonly result$ = toObservable(this.params).pipe(
     switchMap(({ view, year, month, day, site }) => {
       if (!site) return EMPTY;
-      if (view === 'monthly') return this.solarApi.getMonthlySolar(site, year);
-      if (view === 'daily')   return this.solarApi.getDailySolar(site, year, month);
-      return this.solarApi.getIntradaySolar(site, year, month, day);
+      const fetch$ = view === 'monthly' ? this.solarApi.getMonthlySolar(site, year)
+                   : view === 'daily'   ? this.solarApi.getDailySolar(site, year, month)
+                   : this.solarApi.getIntradaySolar(site, year, month, day);
+      return fetch$.pipe(
+        map(points => ({ loading: false, points })),
+        startWith({ loading: true, points: [] as SolarPoint[] }),
+      );
     }),
   );
 
-  private readonly rawPoints = toSignal(this.rawPoints$, { initialValue: [] as SolarPoint[] });
+  private readonly result   = toSignal(this.result$, { initialValue: { loading: false, points: [] as SolarPoint[] } });
+  readonly loading           = computed(() => this.result().loading);
+  private readonly rawPoints = computed(() => this.result().points);
 
   readonly cardTitle = computed(() => {
     const v = this.view(), y = this.year(), m = this.month(), n = this.now();
