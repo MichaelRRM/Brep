@@ -2,6 +2,34 @@
 POST https://demo.app.nexalis.io/api/v0/exec
 Content-Type: text/plain
 
-{ 'token' '4Kh._2qmrBuJMURmkQR_ewpMaPO1vXufVjw87xRAl2S1WhdbiYWtTQ9moWNS74TzizvPX8PuTaWA3qY2sebewh_vgJ6X2crUECqK9CnjyAHaD3RSbiCqqokYljHKWuAEDzQCvG3ngJIceT1_FH74WSQpTO_S6pHOuBXJM3UojSQ7AoTGuyt_vNiVEnHdwuCYMX5UGKk5yxo' 'class' 'nx.value' 'labels' { 'siteName' 'BrightMesa' 'dataPoint' '~^(?:hr/370)$' } 'start' '2026-04-16T13:50:29.840Z' 'end' '2026-04-17T14:50:29.840Z' } FETCH @nexalis/scale
+{ 'token' '4Kh._2qmrBuJMURmkQR_ewpMaPO1vXufVjw87xRAl2S1WhdbiYWtTQ9moWNS74TzizvPX8PuTaWA3qY2sebewh_vgJ6X2crUECqK9CnjyAHaD3RSbiCqqokYljHKWuAEDzQCvG3ngJIceT1_FH74WSQpTO_S6pHOuBXJM3UojSQ7AoTGuyt_vNiVEnHdwuCYMX5UGKk5yxo' 
+'class' 'nx.value' 
+'labels' { 'siteName' 'BrightMesa' 'dataPoint' '~^(?:hr/370)$' } 
+'start' '2026-04-16T13:50:29.840Z' 
+'end' '2026-04-17T14:50:29.840Z'
+} FETCH @nexalis/scale
 
+###
 
+POST https://demo.app.nexalis.io/api/v0/exec
+Content-Type: text/plain
+
+{ 'token' '4Kh._2qmrBuJMURmkQR_ewpMaPO1vXufVjw87xRAl2S1WhdbiYWtTQ9moWNS74TzizvPX8PuTaWA3qY2sebewh_vgJ6X2crUECqK9CnjyAHaD3RSbiCqqokYljHKWuAEDzQCvG3ngJIceT1_FH74WSQpTO_S6pHOuBXJM3UojSQ7AoTGuyt_vNiVEnHdwuCYMX5UGKk5yxo'
+  'start' '2026-04-16T13:50:29.840Z'
+  'end' '2026-04-17T14:50:29.840Z'
+  'bucket_size' 15
+  'labels' { 'siteName' 'BrightMesa' 'dataPoint' '~^(?:hr/370)$' }
+  }
+  @nexalis/fetch_trapezoidal_averages
+
+###
+
+POST https://demo.app.nexalis.io/api/v0/exec
+Content-Type: text/plain
+
+{ 'token' '4Kh._2qmrBuJMURmkQR_ewpMaPO1vXufVjw87xRAl2S1WhdbiYWtTQ9moWNS74TzizvPX8PuTaWA3qY2sebewh_vgJ6X2crUECqK9CnjyAHaD3RSbiCqqokYljHKWuAEDzQCvG3ngJIceT1_FH74WSQpTO_S6pHOuBXJM3UojSQ7AoTGuyt_vNiVEnHdwuCYMX5UGKk5yxo'
+  'start' '2026-01-01T00:00:00.000Z' 'end' '2026-12-31T23:59:59.000Z' 
+  'bucket_size' 43200
+  'labels' { 'siteName' 'BrightMesa' 'dataPoint' '~^(?:hr/370)$' }
+  }
+  @nexalis/fetch_trapezoidal_averages

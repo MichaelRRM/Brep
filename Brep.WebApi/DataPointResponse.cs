@@ -9,5 +9,5 @@ public record DatapointResponse(
 
 public record DatapointValue(
     DateTimeOffset Timestamp,
-    double Value
+    double? Value
 );

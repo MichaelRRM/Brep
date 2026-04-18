@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Brep.WebApi;
 
@@ -16,22 +18,24 @@ public class NexalisClient(HttpClient http, IConfiguration config)
         var start8601 = start.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var end8601 = end.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var labelPattern = $"~^(?:{dataPoint})$";
-
+        
         var body = "{ " +
                    $"'token' '{_token}' " +
                    //$"'class' 'nx.value' " +
-                   $"'labels' {{ 'siteName' '{site}' 'assetType' 'INV' 'dataObject' 'TotW' }} " +
                    $"'start' '{start8601}' " +
                    $"'end' '{end8601}' " +
-                   $"'bucket_size' 15 " +
+                   $"'bucket_size' {bucketSize} " +
+                   $"'labels' {{ 'siteName' '{site}' 'dataPoint' '{labelPattern}' }} " +
                    "} \n@nexalis/fetch_trapezoidal_averages";
 
         var response = await http.PostAsync(_baseUrl,
             new StringContent(body, Encoding.UTF8, "text/plain"), ct);
 
         response.EnsureSuccessStatusCode();
-
-        var raw = await response.Content.ReadFromJsonAsync<JsonElement[][]>(ct);
+        
+        var json = await response.Content.ReadAsStringAsync(ct);
+        json = Regex.Replace(json, @"\bNaN\b", "null");
+        var raw = JsonSerializer.Deserialize<JsonElement[][]>(json);
         var item = raw?[0][0];
         if (item is null) return null;
 
@@ -42,7 +46,7 @@ public class NexalisClient(HttpClient http, IConfiguration config)
                 var arr = v.EnumerateArray().ToArray();
                 var microseconds = arr[0].GetInt64();
                 var ts = DateTimeOffset.FromUnixTimeMilliseconds(microseconds / 1000);
-                return new DatapointValue(ts, arr[1].GetDouble());
+                return new DatapointValue(ts, arr[1].ValueKind == JsonValueKind.Null ? null : arr[1].GetDouble());
             })
             .OrderBy(v => v.Timestamp)
             .ToList();
