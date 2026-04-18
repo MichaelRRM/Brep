@@ -9,10 +9,17 @@ const SOLAR_TO_GRID = 'hr/370';
 
 interface DataPointEntry {
   timestamp: string;
-  value: number;
+  value: number | null;
 }
 
-function toMonthly(entries: DataPointEntry[]): SolarPoint[] {
+interface DataPointResponse {
+  datapoint: string;
+  site: string;
+  units: string;
+  values: DataPointEntry[];
+}
+
+function toMonthly(entries: (DataPointEntry & { value: number })[]): SolarPoint[] {
   const byMonth = new Array(12).fill(0);
   for (const e of entries) {
     byMonth[new Date(e.timestamp).getMonth()] += e.value;
@@ -20,7 +27,7 @@ function toMonthly(entries: DataPointEntry[]): SolarPoint[] {
   return months.map((label, i) => ({ label, toGrid: +byMonth[i].toFixed(2), toBESS: 0, potential: 0 }));
 }
 
-function toDaily(entries: DataPointEntry[], year: number, month: number): SolarPoint[] {
+function toDaily(entries: (DataPointEntry & { value: number })[], year: number, month: number): SolarPoint[] {
   const count = new Date(year, month + 1, 0).getDate();
   const byDay = new Array(count).fill(0);
   for (const e of entries) {
@@ -30,7 +37,7 @@ function toDaily(entries: DataPointEntry[], year: number, month: number): SolarP
   return byDay.map((v, i) => ({ label: String(i + 1), toGrid: +v.toFixed(2), toBESS: 0, potential: 0 }));
 }
 
-function toIntraday(entries: DataPointEntry[]): SolarPoint[] {
+function toIntraday(entries: (DataPointEntry & { value: number })[]): SolarPoint[] {
   const slots = new Array(96).fill(0);
   for (const e of entries) {
     const d = new Date(e.timestamp);
@@ -50,22 +57,22 @@ export class SolarApiService {
 
   getMonthlySolar(site: string, year: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year);
-    return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
+    return this.http.get<DataPointResponse>(`${BASE}/api/datapoint`, {
       params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 43200 },
-    }).pipe(map(entries => toMonthly(entries)));
+    }).pipe(map(res => toMonthly(res.values.filter(e => e.value != null) as (DataPointEntry & { value: number })[])));
   }
 
   getDailySolar(site: string, year: number, month: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year, month);
-    return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
+    return this.http.get<DataPointResponse>(`${BASE}/api/datapoint`, {
       params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 1440 },
-    }).pipe(map(entries => toDaily(entries, year, month)));
+    }).pipe(map(res => toDaily(res.values.filter(e => e.value != null) as (DataPointEntry & { value: number })[], year, month)));
   }
 
   getIntradaySolar(site: string, year: number, month: number, day: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year, month, day);
-    return this.http.get<DataPointEntry[]>(`${BASE}/api/datapoint`, {
+    return this.http.get<DataPointResponse>(`${BASE}/api/datapoint`, {
       params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 15 },
-    }).pipe(map(entries => toIntraday(entries)));
+    }).pipe(map(res => toIntraday(res.values.filter(e => e.value != null) as (DataPointEntry & { value: number })[])));
   }
 }
