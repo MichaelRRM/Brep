@@ -72,7 +72,7 @@ export class SolarApiService {
   getIntradaySolar(site: string, year: number, month: number, day: number): Observable<SolarPoint[]> {
     const { start, end } = isoRange(year, month, day);
     return this.http.get<DataPointResponse>(`${BASE}/api/datapoint`, {
-      params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 15 },
+      params: { site, dataPoint: SOLAR_TO_GRID, start, end, bucketSize: 15, skipCache: true },
     }).pipe(map(res => toIntraday(res.values.filter(e => e.value != null) as (DataPointEntry & { value: number })[])));
   }
 }

@@ -15,10 +15,14 @@ public class NexalisClient(HttpClient http, IConfiguration config, IMemoryCache 
         DateTimeOffset start, DateTimeOffset end, int bucketSize,
         CancellationToken ct = default, bool skipCache = false)
     {
+        var cacheKey = $"nexalis:{site}:{dataPoint}:{start.UtcTicks}:{end.UtcTicks}:{bucketSize}";
+        if (!skipCache && memoryCache.TryGetValue(cacheKey, out DatapointResponse? cached))
+            return cached;
+
         var start8601 = start.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var end8601 = end.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var labelPattern = $"~^(?:{dataPoint})$";
-        
+
         var body = "{ " +
                    $"'token' '{_token}' " +
                    //$"'class' 'nx.value' " +
@@ -51,7 +55,7 @@ public class NexalisClient(HttpClient http, IConfiguration config, IMemoryCache 
             .OrderBy(v => v.Timestamp)
             .ToList();
 
-        return new DatapointResponse(
+        var result = new DatapointResponse(
             Datapoint: item.Value.GetProperty("l")
                 .GetProperty("dataPoint").GetString()!,
             Site: item.Value.GetProperty("l")
@@ -60,5 +64,10 @@ public class NexalisClient(HttpClient http, IConfiguration config, IMemoryCache 
                 .GetProperty("engUnits").GetString()!,
             Values: values
         );
+
+        if (!skipCache)
+            memoryCache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+
+        return result;
     }
 }
