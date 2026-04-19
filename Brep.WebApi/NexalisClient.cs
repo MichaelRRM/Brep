@@ -2,18 +2,18 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Brep.WebApi;
 
-public class NexalisClient(HttpClient http, IConfiguration config)
+public class NexalisClient(HttpClient http, IConfiguration config, IMemoryCache memoryCache)
 {
     private readonly string _token = config["Nexalis:Token"]!;
     private readonly string _baseUrl = config["Nexalis:BaseUrl"]!;
 
-    public async Task<DatapointResponse?> FetchAsync(
-        string site, string dataPoint,
+    public async Task<DatapointResponse?> FetchAsync(string site, string dataPoint,
         DateTimeOffset start, DateTimeOffset end, int bucketSize,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool skipCache = false)
     {
         var start8601 = start.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var end8601 = end.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");

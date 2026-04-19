@@ -15,11 +15,11 @@ public static class Routes
         app.MapGet("/api/datapoint", async (
             string site, string dataPoint,
             DateTimeOffset? start, DateTimeOffset? end, int bucketSize,
-            [FromServices] NexalisClient client, [FromServices] IConfiguration config, CancellationToken ct) =>
+            [FromServices] NexalisClient client, [FromServices] IConfiguration config, CancellationToken ct, bool skipCache = false) =>
         {
             var to = end ?? DateTimeOffset.UtcNow;
             var from = start ?? to.AddHours(-1);
-            var result = await client.FetchAsync(site, dataPoint, from, to, bucketSize, ct);
+            var result = await client.FetchAsync(site, dataPoint, from, to, bucketSize, ct, skipCache);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
